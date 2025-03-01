@@ -2,7 +2,6 @@
 
 # Define Kubernetes version
 K8S_VERSION="1.32.2"
-K8S_VERSION_MAJOR_MINOR="${K8S_VERSION%.*}"
 CNI_VERSION="v1.2.0"
 CALICO_VERSION="v3.26.1"
 POD_NETWORK_CIDR="192.168.0.0/16"
@@ -13,6 +12,7 @@ set -e
 # Function to determine platform architecture
 check_architecture() {
     echo "[System] Checking platform architecture..."
+    echo
     ARCH=$(uname -m)
     case "$ARCH" in
         "aarch64") PLATFORM="arm64" ;;
@@ -25,6 +25,7 @@ check_architecture() {
 # Function to check and remove old Kubernetes versions
 cleanup_old_k8s() {
     echo "[Cleanup] Removing old Kubernetes installations..."
+    echo
     sudo kubeadm reset -f || true
     sudo apt-get remove -y kubelet kubeadm kubectl || true
     sudo apt-get autoremove -y || true
@@ -42,6 +43,7 @@ update_system() {
 # Function to install dependencies
 install_dependencies() {
     echo "[Dependencies] Installing required packages..."
+    echo
     sudo apt-get install -y apt-transport-https ca-certificates curl gpg software-properties-common vim bash-completion
     echo "[Dependencies] Packages installed."
 }
@@ -49,23 +51,27 @@ install_dependencies() {
 # Function to install containerd
 install_containerd() {
     echo "[Containerd] Installing containerd..."
+    echo
     sudo apt-get install -y containerd
     sudo mkdir -p /etc/containerd
     containerd config default | sudo tee /etc/containerd/config.toml
     sudo systemctl restart containerd
     sudo systemctl enable containerd
+    echo
     echo "[Containerd] Containerd installed and configured."
 }
 
 # Function to install Kubernetes
 install_kubernetes() {
     echo "[Kubernetes] Adding Kubernetes repository..."
+    echo
     sudo mkdir -p /etc/apt/keyrings
-    curl -fsSLo /etc/apt/keyrings/kubernetes-apt-keyring.gpg https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key
-    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION%.*}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-${K8S_VERSION/./-}-apt-keyring.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION%.*}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
     sudo apt-get update
-
+    echo
     echo "[Kubernetes] Installing kubeadm, kubelet, and kubectl version $K8S_VERSION..."
+    echo
     sudo apt-get install -y kubelet=${K8S_VERSION}-1.1 kubeadm=${K8S_VERSION}-1.1 kubectl=${K8S_VERSION}-1.1
     sudo apt-mark hold kubelet kubeadm kubectl
     echo "[Kubernetes] Kubernetes installation complete."
@@ -74,6 +80,7 @@ install_kubernetes() {
 # Function to initialize the Kubernetes cluster
 initialize_kubernetes() {
     echo "[Kubernetes] Initializing Kubernetes cluster..."
+    echo
     sudo kubeadm init --pod-network-cidr=${POD_NETWORK_CIDR} --kubernetes-version=${K8S_VERSION} | tee kubeadm-init.log
 
     echo "[Kubernetes] Setting up kubectl for the current user..."
