@@ -11,3 +11,8 @@ Worker:
 ```sh
 bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/install_worker.sh)
 ```
+
+Master Alternative:
+```sh
+bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/setup_master.sh)
+```
