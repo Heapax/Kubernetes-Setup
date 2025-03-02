@@ -6,7 +6,7 @@ K8S_VERSION_MAJOR_MINOR="${K8S_VERSION%.*}"
 CNI_VERSION="v1.2.0"
 CALICO_VERSION="v3.26.1"
 POD_NETWORK_CIDR="192.168.0.0/16"
-CONTAINERD_VERSION="1.6.12"
+CONTAINERD_VERSION="2.0.3"
 
 
 # Exit script on any error
@@ -40,6 +40,7 @@ cleanup_old_k8s() {
 
 # Update system packages
 update_system() {
+  echo
   echo "[System] Updating system packages..."
   sudo apt-get update && sudo apt-get upgrade -y
   echo "[System] System update complete."
@@ -66,7 +67,7 @@ disable_swap() {
 install_containerd() {
   echo "[Containerd] Installing containerd..."
   echo
-  wget https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-1.6.12-linux-${PLATFORM}.tar.gz
+  wget https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-${PLATFORM}.tar.gz
   tar xvf containerd-${CONTAINERD_VERSION}-linux-${PLATFORM}.tar.gz
   systemctl stop containerd
   mv bin/* /usr/bin
