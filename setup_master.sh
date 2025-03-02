@@ -184,7 +184,7 @@ install_kubernetes() {
   echo "[Kubernetes] Adding Kubernetes repository..."
   echo
   sudo mkdir -p /etc/apt/keyrings
-  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg
+  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg
   echo "deb [signed-by=/etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
   sudo apt-get update
   echo
@@ -241,7 +241,9 @@ configure_shell() {
 # Output the join command for worker nodes
 output_join_command() {
   echo "[Kubernetes] Fetching join command for worker nodes..."
-  kubeadm token create --print-join-command | tee kubeadm-join-command.txt
+  echo
+  kubeadm token create --print-join-command --ttl 0 | tee kubeadm-join-command.txt
+  echo
   echo "[Kubernetes] Join command saved in kubeadm-join-command.txt"
 }
 
