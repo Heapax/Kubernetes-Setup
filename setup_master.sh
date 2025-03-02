@@ -2,6 +2,7 @@
 
 # Define Kubernetes version
 K8S_VERSION="1.32.2"
+K8S_VERSION_MAJOR_MINOR="${K8S_VERSION%.*}"
 CNI_VERSION="v1.2.0"
 CALICO_VERSION="v3.26.1"
 POD_NETWORK_CIDR="192.168.0.0/16"
@@ -66,8 +67,8 @@ install_kubernetes() {
     echo "[Kubernetes] Adding Kubernetes repository..."
     echo
     sudo mkdir -p /etc/apt/keyrings
-    curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION%.*}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-${K8S_VERSION/./-}-apt-keyring.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION%.*}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
     sudo apt-get update
     echo
     echo "[Kubernetes] Installing kubeadm, kubelet, and kubectl version $K8S_VERSION..."
