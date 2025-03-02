@@ -4,15 +4,13 @@ Enter the following commands into the master nodes and worker nodes respectivly:
 
 Master:
 ```sh
-bash <(curl -s https:///raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/install_master.sh)
+bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/setup_master.sh)
 ```
 
 Worker:
 ```sh
-bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/install_worker.sh)
+bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/setup_worker.sh)
 ```
 
-Master Alternative:
-```sh
-bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/setup_master.sh)
-```
+> [!NOTE] NOte
+> This script has been tested on Ubuntu 22.04 - Jammy Jellyfish
