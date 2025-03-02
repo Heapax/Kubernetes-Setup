@@ -228,10 +228,12 @@ configure_shell() {
   echo 'set tabstop=2' >> ~/.vimrc
   echo 'set shiftwidth=2' >> ~/.vimrc
   echo 'set expandtab' >> ~/.vimrc
+  echo '' >> ~/.bashrc
+  echo '# Kubernetes' >> ~/.bashrc
   echo 'export KUBECONFIG=$HOME/.kube/config' >> ~/.bashrc
   echo 'source <(kubectl completion bash)' >> ~/.bashrc
-  echo 'alias k=kubectl' >> ~/.bashrc
-  echo 'alias c=clear' >> ~/.bashrc
+  echo 'alias k='kubectl'' >> ~/.bashrc
+  echo 'alias c='clear'' >> ~/.bashrc
   echo 'complete -F __start_kubectl k' >> ~/.bashrc
   sed -i '1s/^/force_color_prompt=yes\n/' ~/.bashrc
   echo "[Configuration] Shell environment updated."
