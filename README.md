@@ -12,5 +12,4 @@ Worker:
 bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/setup_worker.sh)
 ```
 
-> [!NOTE] NOte
-> This script has been tested on Ubuntu 22.04 - Jammy Jellyfish
+> Note: This script has been tested on Ubuntu 22.04 - Jammy Jellyfish.
