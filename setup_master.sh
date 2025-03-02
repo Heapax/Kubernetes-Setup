@@ -137,45 +137,45 @@ version = 2
         ShimCgroup = ""
         SystemdCgroup = true
 EOF
-  echo '[Containerd] containerd config created successfully.'
+  echo "[Containerd] containerd config created successfully."
 }
 
 
 # Configure crictl to use containerd as default
 configure_crictl() {
-  echo '[Crictl] Enable crictl to use containerd as default...'
+  echo "[Crictl] Enable crictl to use containerd as default..."
   echo
   {
     cat <<EOF | sudo tee /etc/crictl.yaml
 runtime-endpoint: unix:///run/containerd/containerd.sock
 EOF
   }
-  echo '[Crictl] crictl configured successfully.'
+  echo "[Crictl] crictl configured successfully."
 }
 
 
 # Configure kubelet to use containerd as default
 configure_kubelet() {
-  echo '[Kubelet] Enable kubelet to use containerd as default...'
+  echo "[Kubelet] Enable kubelet to use containerd as default..."
   echo
   {
     cat <<EOF | sudo tee /etc/default/kubelet
 KUBELET_EXTRA_ARGS="--container-runtime-endpoint unix:///run/containerd/containerd.sock"
 EOF
   }
-  echo '[Kubelet] kubelet configured successfully.'
+  echo "[Kubelet] kubelet configured successfully."
 }
 
 
 # Start containerd and kubelet services
 start_services() {
-  echo '[System] Starting containerd and kubelet services...'
+  echo "[System] Starting containerd and kubelet services..."
   echo
   systemctl daemon-reload
   systemctl enable containerd
   systemctl restart containerd
   systemctl enable kubelet && systemctl start kubelet
-  echo '[System] Services started successfully.'
+  echo "[System] Services started successfully."
 }
 
 
