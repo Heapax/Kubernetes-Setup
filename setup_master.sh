@@ -244,7 +244,6 @@ output_join_command() {
 check_architecture
 cleanup_old_k8s
 disable_swap
-install_podman
 install_dependencies
 install_kubernetes
 install_containerd
