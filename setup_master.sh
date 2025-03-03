@@ -47,60 +47,6 @@ cleanup_old_k8s() {
   echo
 }
 
-# Install Podman
-install_podman() {
-  echo "[Podman] Installing Podman..."
-  . /etc/os-release
-
-  echo "[Podman] Adding Podman repository..."
-  wget -qO - "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo gpg --dearmor -o /usr/share/keyrings/libcontainers-archive-keyring.gpg
-  if [ $? -ne 0 ]; then
-    echo "[Error] Failed to add Podman repository."
-    exit 1
-  fi
-
-  echo "[Podman] Adding repository GPG key..."
-  echo "deb [signed-by=/usr/share/keyrings/libcontainers-archive-keyring.gpg] http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel-kubic-libcontainers.list
-  if [ $? -ne 0 ]; then
-    echo "[Error] Failed to add GPG key."
-    exit 1
-  fi
-
-  echo "[Podman] Updating package list..."
-  apt-get update -qq
-  if [ $? -ne 0 ]; then
-    echo "[Error] Failed to update package list."
-    exit 1
-  fi
-
-  echo "[Podman] Installing Podman and related packages..."
-  apt-get -qq -y install podman cri-tools containers-common
-  if [ $? -ne 0 ]; then
-    echo "[Error] Failed to install Podman."
-    exit 1
-  fi
-
-  echo "[Podman] Cleaning up..."
-  rm /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-  if [ $? -ne 0 ]; then
-    echo "[Error] Failed to remove repository list."
-    exit 1
-  fi
-
-  echo "[Podman] Configuring container registries..."
-  cat <<EOF | sudo tee /etc/containers/registries.conf
-[registries.search]
-registries = ['docker.io']
-EOF
-  if [ $? -ne 0 ]; then
-    echo "[Error] Failed to configure registries."
-    exit 1
-  fi
-
-  echo "[Podman] Podman installed successfully."
-  echo
-}
-
 # Install dependencies
 install_dependencies() {
   echo "[Dependencies] Installing required packages..."
