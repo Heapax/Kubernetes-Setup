@@ -15,11 +15,21 @@ set -e
 # Determine platform architecture
 check_architecture() {
   echo "[System] Checking platform architecture..."
+  echo "[System] Uname -m output: $(uname -m)"
   ARCH=$(uname -m)
   case "$ARCH" in
-    "aarch64") PLATFORM="arm64" ;;
-    "x86_64") PLATFORM="amd64" ;;
-    *) echo "[Error] Unsupported architecture: $ARCH. Only amd64 and arm64/aarch64 are supported."; exit 1 ;;
+    "aarch64")
+      echo "[System] Detected aarch64 architecture."
+      PLATFORM="arm64"
+      ;;
+    "x86_64")
+      echo "[System] Detected x86_64 architecture."
+      PLATFORM="amd64"
+      ;;
+    *)
+      echo "[Error] Unsupported architecture: $ARCH. Only amd64 and arm64/aarch64 are supported."
+      exit 1
+      ;;
   esac
   echo "[System] Detected architecture: $ARCH, setting platform to $PLATFORM."
   echo
@@ -37,11 +47,17 @@ disable_swap() {
 # Check and remove old Kubernetes versions
 cleanup_old_k8s() {
   echo "[Cleanup] Removing old Kubernetes installations..."
+  echo "[Cleanup] Running kubeadm reset..."
   kubeadm reset -f || true
+  echo "[Cleanup] Removing containerd pods..."
   crictl rm --force $(crictl ps -a -q) || true
+  echo "[Cleanup] Unholding packages..."
   apt-mark unhold kubelet kubeadm kubectl kubernetes-cni || true
+  echo "[Cleanup] Removing packages..."
   apt-get remove -y docker.io containerd kubelet kubeadm kubectl kubernetes-cni || true
+  echo "[Cleanup] Removing autoremovable packages..."
   apt-get autoremove -y || true
+  echo "[Cleanup] Removing directories..."
   rm -rf ~/.kube /etc/kubernetes /var/lib/etcd /var/lib/kubelet
   echo "[Cleanup] Old Kubernetes installations removed."
   echo
@@ -57,21 +73,28 @@ install_dependencies() {
 
 # Install Kubernetes
 install_kubernetes() {
+  echo "[Kubernetes] Starting installation process..."
   echo "[Kubernetes] Adding Kubernetes repository..."
   mkdir -p /etc/apt/keyrings
   KEYRING_PATH="/etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg"
   if [ -f "$KEYRING_PATH" ]; then
+    echo "[Kubernetes] Existing keyring found, removing..."
     rm "$KEYRING_PATH"
   fi
+  echo "[Kubernetes] Downloading and installing keyring..."
   curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor --yes -o "$KEYRING_PATH"
+  echo "[Kubernetes] Adding Kubernetes to sources list..."
   echo "deb [signed-by=$KEYRING_PATH] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+  
+  echo "[Kubernetes] Updating package list..."
   apt-get update
-  echo
+  
   echo "[Kubernetes] Installing packages..."
   apt-get install -y docker.io containerd kubelet=${K8S_VERSION}-1.1 kubeadm=${K8S_VERSION}-1.1 kubectl=${K8S_VERSION}-1.1
+  echo "[Kubernetes] Holding package versions..."
   apt-mark hold kubelet kubeadm kubectl kubernetes-cni
+  
   echo "[Kubernetes] Kubernetes installation complete."
-  echo
 }
 
 # Install containerd
@@ -188,15 +211,19 @@ start_services() {
 # Initialize the Kubernetes cluster
 initialize_kubernetes() {
   echo "[Kubernetes] Initializing Kubernetes cluster..."
-  kubeadm init --ignore-preflight-errors=NumCPU --pod-network-cidr=${POD_NETWORK_CIDR} --kubernetes-version=${K8S_VERSION} | tee kubeadm-init.log
+  echo "[Kubernetes] Running kubeadm init..."
+  kubeadm init --ignore-preflight-errors=NumCPU --pod-network-cidr=${POD_NETWORK_CIDR} --kubernetes-version=${K8S_VERSION} 2>&1 | tee kubeadm-init.log
+  echo "[Kubernetes] kubeadm init completed."
   echo
   echo "[Kubernetes] Setting up kubectl for the current user..."
   mkdir -p $HOME/.kube
   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
   sudo chown $(id -u):$(id -g) $HOME/.kube/config
+  echo "[Kubernetes] kubectl configured successfully."
   echo
   echo "[Kubernetes] Applying Calico CNI plugin..."
   curl -fsSL -o calico.yaml https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests/calico.yaml
+  echo "[Kubernetes] Running kubectl to apply Calico CNI plugin..."
   kubectl apply -f calico.yaml
   echo "[Kubernetes] Calico networking configured."
   echo
@@ -204,13 +231,20 @@ initialize_kubernetes() {
 
 # Setup etcdctl
 setup_etcdctl() {
-  echo "[Etcdctl] Installing etcdctl..."
+  echo "[Etcdctl] Downloading etcdctl..."
   ETCDCTL_ARCH=$(dpkg --print-architecture)
   ETCDCTL_VERSION_FULL="etcd-${ETCDCTL_VERSION}-linux-${ETCDCTL_ARCH}"
-  wget -q https://github.com/etcd-io/etcd/releases/download/${ETCDCTL_VERSION}/${ETCDCTL_VERSION_FULL}.tar.gz
+  wget -q -O ${ETCDCTL_VERSION_FULL}.tar.gz https://github.com/etcd-io/etcd/releases/download/${ETCDCTL_VERSION}/${ETCDCTL_VERSION_FULL}.tar.gz
+  echo "[Etcdctl] Downloaded ${ETCDCTL_VERSION_FULL}.tar.gz"
+  echo "[Etcdctl] Extracting etcdctl..."
   tar xzf ${ETCDCTL_VERSION_FULL}.tar.gz ${ETCDCTL_VERSION_FULL}/etcdctl
+  echo "[Etcdctl] Extracted ${ETCDCTL_VERSION_FULL}/etcdctl"
+  echo "[Etcdctl] Moving etcdctl to /usr/bin..."
   sudo mv ${ETCDCTL_VERSION_FULL}/etcdctl /usr/bin/
+  echo "[Etcdctl] Moved etcdctl to /usr/bin/"
+  echo "[Etcdctl] Cleaning up temporary files..."
   rm -rf ${ETCDCTL_VERSION_FULL} ${ETCDCTL_VERSION_FULL}.tar.gz
+  echo "[Etcdctl] Temporary files cleaned up."
   echo "[Etcdctl] Installation complete."
   echo
 }
