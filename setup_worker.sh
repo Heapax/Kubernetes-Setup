@@ -5,10 +5,8 @@ K8S_VERSION="1.32.2"
 K8S_VERSION_MAJOR_MINOR="${K8S_VERSION%.*}"
 CONTAINERD_VERSION="2.0.3"
 
-
 # Exit script on any error
 set -e
-
 
 # Determine platform architecture
 check_architecture() {
@@ -22,7 +20,6 @@ check_architecture() {
   echo "[System] Detected architecture: $ARCH, setting platform to $PLATFORM."
 }
 
-
 # Check and remove old Kubernetes versions
 cleanup_old_k8s() {
   echo "[Cleanup] Removing old Kubernetes installations..."
@@ -34,7 +31,6 @@ cleanup_old_k8s() {
   echo "[Cleanup] Old Kubernetes installations removed."
 }
 
-
 # Update system packages
 update_system() {
   echo "[System] Updating system packages..."
@@ -42,14 +38,12 @@ update_system() {
   echo "[System] System update complete."
 }
 
-
 # Install Podman
 install_podman() {
   echo "[Podman] Installing Podman..."
   sudo apt-get install -y podman
   echo "[Podman] Podman installed."
 }
-
 
 # Install Kubernetes
 install_kubernetes() {
@@ -67,13 +61,11 @@ install_kubernetes() {
   echo "[Kubernetes] Kubernetes installation complete."
 }
 
-
 # Disable linux swap and remove any exisitng swap partitions
 disable_swap() {
   swapoff -a
   sed -i '/\sswap\s/ s/^\(.*\)$/#\1/g' /etc/fstab
 }
-
 
 # Install containerd
 install_containerd() {
@@ -88,7 +80,6 @@ install_containerd() {
   systemctl start containerd
   echo "[Containerd] Containerd installed."
 }
-
 
 # Setup containerd environmet
 setup_containerd() {
@@ -109,7 +100,6 @@ EOF
   sudo mkdir -p /etc/containerd
   echo "[Containerd] Containerd environment setup completed."
 }
-
 
 # Create custom containerd configure file
 create_containerd_config() {
@@ -153,7 +143,6 @@ EOF
   echo "[Containerd] containerd config created successfully."
 }
 
-
 # Configure crictl to use containerd as default
 configure_crictl() {
   echo "[Crictl] Enable crictl to use containerd as default..."
@@ -165,7 +154,6 @@ EOF
   }
   echo "[Crictl] crictl configured successfully."
 }
-
 
 # Configure kubelet to use containerd as default
 configure_kubelet() {
@@ -179,7 +167,6 @@ EOF
   echo "[Kubelet] kubelet configured successfully."
 }
 
-
 # Start containerd and kubelet services
 start_services() {
   echo "[System] Starting containerd and kubelet services..."
@@ -191,7 +178,6 @@ start_services() {
   systemctl enable kubelet && systemctl start kubelet
   echo "[System] Services started successfully."
 }
-
 
 # Update shell environment
 configure_shell() {
@@ -211,7 +197,6 @@ configure_shell() {
   echo "[Configuration] Shell environment updated."
 }
 
-
 # Run installation steps
 check_architecture
 cleanup_old_k8s
@@ -226,3 +211,6 @@ configure_crictl
 configure_kubelet
 start_services
 configure_shell
+
+# Final message
+echo "[Setup Complete] Kubernetes worker node setup finished successfully!"

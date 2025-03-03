@@ -8,10 +8,8 @@ CALICO_VERSION="v3.26.1"
 POD_NETWORK_CIDR="192.168.0.0/16"
 CONTAINERD_VERSION="2.0.3"
 
-
 # Exit script on any error
 set -e
-
 
 # Determine platform architecture
 check_architecture() {
@@ -23,50 +21,48 @@ check_architecture() {
     *) echo "[Error] Unsupported architecture: $ARCH. Only amd64 and arm64/aarch64 are supported."; exit 1 ;;
   esac
   echo "[System] Detected architecture: $ARCH, setting platform to $PLATFORM."
+  echo
 }
-
 
 # Check and remove old Kubernetes versions
 cleanup_old_k8s() {
   echo "[Cleanup] Removing old Kubernetes installations..."
-  echo
   sudo kubeadm reset -f || true
   sudo apt-get remove -y kubelet kubeadm kubectl || true
   sudo apt-get autoremove -y || true
   sudo rm -rf ~/.kube /etc/kubernetes /var/lib/etcd /var/lib/kubelet
   echo "[Cleanup] Old Kubernetes installations removed."
+  echo
 }
-
 
 # Update system packages
 update_system() {
-  echo
   echo "[System] Updating system packages..."
   sudo apt-get update && sudo apt-get upgrade -y
   echo "[System] System update complete."
+  echo
 }
-
 
 # Install dependencies
 install_dependencies() {
   echo "[Dependencies] Installing required packages..."
-  echo
   sudo apt-get install -y apt-transport-https ca-certificates curl gpg software-properties-common vim bash-completion
   echo "[Dependencies] Packages installed."
+  echo
 }
-
 
 # Disable linux swap and remove any exisitng swap partitions
 disable_swap() {
+  echo "[System] Disabling swap space and removing swap partitions..."
   swapoff -a
   sed -i '/\sswap\s/ s/^\(.*\)$/#\1/g' /etc/fstab
+  echo "[System] Swap space disabled."
+  echo
 }
-
 
 # Install containerd
 install_containerd() {
   echo "[Containerd] Installing containerd..."
-  echo
   wget https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-${PLATFORM}.tar.gz
   tar xvf containerd-${CONTAINERD_VERSION}-linux-${PLATFORM}.tar.gz
   systemctl stop containerd
@@ -75,13 +71,12 @@ install_containerd() {
   systemctl unmask containerd
   systemctl start containerd
   echo "[Containerd] Containerd installed."
+  echo
 }
-
 
 # Setup containerd environmet
 setup_containerd() {
   echo "[Containerd] Setting up containerd environment..."
-  echo
   cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
 overlay
 br_netfilter
@@ -96,13 +91,12 @@ EOF
   sudo sysctl --system
   sudo mkdir -p /etc/containerd
   echo "[Containerd] Containerd environment setup completed."
+  echo
 }
-
 
 # Create custom containerd configure file
 create_containerd_config() {
   echo '[Containerd] Creating containerd config...'
-  echo
   cat > /etc/containerd/config.toml <<EOF
 disabled_plugins = []
 imports = []
@@ -139,88 +133,83 @@ version = 2
         SystemdCgroup = true
 EOF
   echo "[Containerd] containerd config created successfully."
+  echo
 }
-
 
 # Configure crictl to use containerd as default
 configure_crictl() {
   echo "[Crictl] Enable crictl to use containerd as default..."
-  echo
   {
     cat <<EOF | sudo tee /etc/crictl.yaml
 runtime-endpoint: unix:///run/containerd/containerd.sock
 EOF
   }
   echo "[Crictl] crictl configured successfully."
+  echo
 }
-
 
 # Configure kubelet to use containerd as default
 configure_kubelet() {
   echo "[Kubelet] Enable kubelet to use containerd as default..."
-  echo
   {
     cat <<EOF | sudo tee /etc/default/kubelet
 KUBELET_EXTRA_ARGS="--container-runtime-endpoint unix:///run/containerd/containerd.sock"
 EOF
   }
   echo "[Kubelet] kubelet configured successfully."
+  echo
 }
-
 
 # Start containerd and kubelet services
 start_services() {
   echo "[System] Starting containerd and kubelet services..."
-  echo
   systemctl daemon-reload
   systemctl enable containerd
   systemctl restart containerd
   systemctl enable kubelet && systemctl start kubelet
   echo "[System] Services started successfully."
+  echo
 }
-
 
 # Install Kubernetes
 install_kubernetes() {
   echo "[Kubernetes] Adding Kubernetes repository..."
-  echo
   sudo mkdir -p /etc/apt/keyrings
   curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg
   echo "deb [signed-by=/etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
   sudo apt-get update
   echo
   echo "[Kubernetes] Installing kubeadm, kubelet, and kubectl version $K8S_VERSION..."
-  echo
   sudo apt-get install -y kubelet=${K8S_VERSION}-1.1 kubeadm=${K8S_VERSION}-1.1 kubectl=${K8S_VERSION}-1.1
   sudo apt-mark hold kubelet kubeadm kubectl
   echo "[Kubernetes] Kubernetes installation complete."
+  echo
 }
 
 # Initialize the Kubernetes cluster
 initialize_kubernetes() {
   echo "[Kubernetes] Initializing Kubernetes cluster..."
-  echo
   sudo kubeadm init --ignore-preflight-errors=NumCPU --pod-network-cidr=${POD_NETWORK_CIDR} --kubernetes-version=${K8S_VERSION} | tee kubeadm-init.log
-
+  echo
   echo "[Kubernetes] Setting up kubectl for the current user..."
   mkdir -p $HOME/.kube
   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
   sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
+  echo
   echo "[Kubernetes] Applying Calico CNI plugin..."
   curl -fsSL -o calico.yaml https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests/calico.yaml
   kubectl apply -f calico.yaml
   echo "[Kubernetes] Calico networking configured."
+  echo
 }
-
 
 # Install Podman
 install_podman() {
   echo "[Podman] Installing Podman..."
   sudo apt-get install -y podman
   echo "[Podman] Podman installed."
+  echo
 }
-
 
 # Update shell environment
 configure_shell() {
@@ -238,8 +227,8 @@ configure_shell() {
   echo 'complete -F __start_kubectl k' >> ~/.bashrc
   sed -i '1s/^/force_color_prompt=yes\n/' ~/.bashrc
   echo "[Configuration] Shell environment updated."
+  echo
 }
-
 
 # Output the join command for worker nodes
 output_join_command() {
@@ -249,7 +238,6 @@ output_join_command() {
   echo
   echo "[Kubernetes] Join command saved in kubeadm-join-command.txt"
 }
-
 
 # Run installation steps
 check_architecture
@@ -268,7 +256,6 @@ initialize_kubernetes
 install_podman
 configure_shell
 output_join_command
-
 
 # Final message
 echo "[Setup Complete] Kubernetes master node setup finished successfully!"
