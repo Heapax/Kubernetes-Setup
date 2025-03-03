@@ -4,7 +4,7 @@
 DOCKER_VERSION="5:23.0.1-1~ubuntu.${UBUNTU_VERSION}~focal"
 K8S_VERSION="1.27.0"
 K8S_POD_NETWORK_CIDR="192.168.0.0/16"
-UBUNTU_VERSION=$(lsb_release -rs)
+UBUNTU_VERSION="$(lsb_release -rs)"
 
 # Exit on any error
 set -e
