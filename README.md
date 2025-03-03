@@ -13,12 +13,12 @@ Enter the following commands into the master nodes and worker nodes respectivly:
 
 Master:
 ```sh
-bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/setup_master.sh)
+bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/new_master_setup.sh)
 ```
 
 Worker:
 ```sh
-bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/setup_worker.sh)
+bash <(curl -s https://raw.githubusercontent.com/Heapax/Kubernetes-Setup/refs/heads/main/new_worker_setup.sh)
 ```
 
 > Note: This script has been tested on Ubuntu 22.04 - Jammy Jellyfish.
