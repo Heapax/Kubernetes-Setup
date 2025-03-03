@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Define Kubernetes version
+# Define variables
 K8S_VERSION="1.32.2"
 K8S_VERSION_MAJOR_MINOR="${K8S_VERSION%.*}"
 CNI_VERSION="v1.2.0"
 CALICO_VERSION="v3.26.1"
-POD_NETWORK_CIDR="192.168.0.0/16"
 CONTAINERD_VERSION="2.0.3"
+ETCDCTL_VERSION="v3.5.1"
+POD_NETWORK_CIDR="192.168.0.0/16"
 
 # Exit script on any error
 set -e
@@ -24,39 +25,66 @@ check_architecture() {
   echo
 }
 
-# Check and remove old Kubernetes versions
-cleanup_old_k8s() {
-  echo "[Cleanup] Removing old Kubernetes installations..."
-  sudo kubeadm reset -f || true
-  sudo apt-get remove -y kubelet kubeadm kubectl || true
-  sudo apt-get autoremove -y || true
-  sudo rm -rf ~/.kube /etc/kubernetes /var/lib/etcd /var/lib/kubelet
-  echo "[Cleanup] Old Kubernetes installations removed."
-  echo
-}
-
-# Update system packages
-update_system() {
-  echo "[System] Updating system packages..."
-  sudo apt-get update && sudo apt-get upgrade -y
-  echo "[System] System update complete."
-  echo
-}
-
-# Install dependencies
-install_dependencies() {
-  echo "[Dependencies] Installing required packages..."
-  sudo apt-get install -y apt-transport-https ca-certificates curl gpg software-properties-common vim bash-completion
-  echo "[Dependencies] Packages installed."
-  echo
-}
-
 # Disable linux swap and remove any exisitng swap partitions
 disable_swap() {
   echo "[System] Disabling swap space and removing swap partitions..."
   swapoff -a
   sed -i '/\sswap\s/ s/^\(.*\)$/#\1/g' /etc/fstab
   echo "[System] Swap space disabled."
+  echo
+}
+
+# Check and remove old Kubernetes versions
+cleanup_old_k8s() {
+  echo "[Cleanup] Removing old Kubernetes installations..."
+  kubeadm reset -f || true
+  crictl rm --force $(crictl ps -a -q) || true
+  apt-mark unhold kubelet kubeadm kubectl kubernetes-cni || true
+  apt-get remove -y docker.io containerd kubelet kubeadm kubectl kubernetes-cni || true
+  apt-get autoremove -y || true
+  rm -rf ~/.kube /etc/kubernetes /var/lib/etcd /var/lib/kubelet
+  echo "[Cleanup] Old Kubernetes installations removed."
+  echo
+}
+
+# Install Podman
+install_podman() {
+  echo "[Podman] Installing Podman..."
+  . /etc/os-release
+  echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:testing.list
+  curl -L "http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo apt-key add -
+  apt-get update -qq
+  apt-get -qq -y install podman cri-tools containers-common
+  rm /etc/apt/source.listd./devel:kubic:libcontainers:testing.list
+  cat <<EOF | sudo tee /etc/containers/registries.conf
+[registries.search]
+registries = ['docker.io']
+EOF
+  echo "[Podman] Podman installed."
+  echo
+}
+
+# Install dependencies
+install_dependencies() {
+  echo "[Dependencies] Installing required packages..."
+  apt-get install -y apt-transport-https ca-certificates curl gpg software-properties-common vim bash-completion
+  echo "[Dependencies] Packages installed."
+  echo
+}
+
+# Install Kubernetes
+install_kubernetes() {
+  echo "[Kubernetes] Adding Kubernetes repository..."
+  mkdir -p /etc/apt/keyrings
+  rm /etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg
+  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+  apt-get --allow-unauthenticated update
+  echo
+  echo "[Kubernetes] Installing packages..."
+  apt-get install -y docker.io containerd kubelet=${K8S_VERSION}-1.1 kubeadm=${K8S_VERSION}-1.1 kubectl=${K8S_VERSION}-1.1
+  apt-mark hold kubelet kubeadm kubectl kubernetes-cni
+  echo "[Kubernetes] Kubernetes installation complete."
   echo
 }
 
@@ -171,25 +199,10 @@ start_services() {
   echo
 }
 
-# Install Kubernetes
-install_kubernetes() {
-  echo "[Kubernetes] Adding Kubernetes repository..."
-  sudo mkdir -p /etc/apt/keyrings
-  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg
-  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-  sudo apt-get update
-  echo
-  echo "[Kubernetes] Installing kubeadm, kubelet, and kubectl version $K8S_VERSION..."
-  sudo apt-get install -y kubelet=${K8S_VERSION}-1.1 kubeadm=${K8S_VERSION}-1.1 kubectl=${K8S_VERSION}-1.1
-  sudo apt-mark hold kubelet kubeadm kubectl
-  echo "[Kubernetes] Kubernetes installation complete."
-  echo
-}
-
 # Initialize the Kubernetes cluster
 initialize_kubernetes() {
   echo "[Kubernetes] Initializing Kubernetes cluster..."
-  sudo kubeadm init --ignore-preflight-errors=NumCPU --pod-network-cidr=${POD_NETWORK_CIDR} --kubernetes-version=${K8S_VERSION} | tee kubeadm-init.log
+  kubeadm init --ignore-preflight-errors=NumCPU --pod-network-cidr=${POD_NETWORK_CIDR} --kubernetes-version=${K8S_VERSION} | tee kubeadm-init.log
   echo
   echo "[Kubernetes] Setting up kubectl for the current user..."
   mkdir -p $HOME/.kube
@@ -203,11 +216,16 @@ initialize_kubernetes() {
   echo
 }
 
-# Install Podman
-install_podman() {
-  echo "[Podman] Installing Podman..."
-  sudo apt-get install -y podman
-  echo "[Podman] Podman installed."
+# Setup etcdctl
+setup_etcdctl() {
+  echo "[Etcdctl] Installing etcdctl..."
+  ETCDCTL_ARCH=$(dpkg --print-architecture)
+  ETCDCTL_VERSION_FULL="etcd-${ETCDCTL_VERSION}-linux-${ETCDCTL_ARCH}"
+  wget -q https://github.com/etcd-io/etcd/releases/download/${ETCDCTL_VERSION}/${ETCDCTL_VERSION_FULL}.tar.gz
+  tar xzf ${ETCDCTL_VERSION_FULL}.tar.gz ${ETCDCTL_VERSION_FULL}/etcdctl
+  sudo mv ${ETCDCTL_VERSION_FULL}/etcdctl /usr/bin/
+  rm -rf ${ETCDCTL_VERSION_FULL} ${ETCDCTL_VERSION_FULL}.tar.gz
+  echo "[Etcdctl] Installation complete."
   echo
 }
 
@@ -242,18 +260,18 @@ output_join_command() {
 # Run installation steps
 check_architecture
 cleanup_old_k8s
-update_system
-install_dependencies
 disable_swap
+install_podman
+install_dependencies
+install_kubernetes
 install_containerd
 setup_containerd
 create_containerd_config
 configure_crictl
 configure_kubelet
 start_services
-install_kubernetes
 initialize_kubernetes
-install_podman
+setup_etcdctl
 configure_shell
 output_join_command
 
