@@ -1,12 +1,33 @@
 #!/bin/bash
 
 # Define constants
-DOCKER_VERSION="5:23.0.1-1~ubuntu.20.04~focal"
+DOCKER_VERSION="5:23.0.1-1~ubuntu.${UBUNTU_VERSION}~focal"
 K8S_VERSION="1.27.0"
 K8S_POD_NETWORK_CIDR="192.168.0.0/16"
+UBUNTU_VERSION=$(lsb_release -rs)
 
 # Exit on any error
 set -e
+
+check_architecture() {
+  echo "[System] Checking platform architecture..."
+  echo "[System] Uname -m output: $(uname -m)"
+  case "$ARCH" in
+    "aarch64")
+      echo "[System] Detected aarch64 architecture."
+      PLATFORM="arm64"
+      ;;
+    "x86_64")
+      echo "[System] Detected x86_64 architecture."
+      PLATFORM="amd64"
+      ;;
+    *)
+      echo "[Error] Unsupported architecture: $ARCH. Only amd64 and arm64/aarch64 are supported."
+      exit 1
+      ;;
+  esac
+  echo "[System] Detected architecture: $ARCH, setting platform to $PLATFORM."
+}
 
 # Function to install required kernel modules
 install_kernel_modules() {
