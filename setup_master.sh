@@ -276,8 +276,8 @@ output_join_command() {
 
 # Run installation steps
 check_architecture
-cleanup_old_k8s
 disable_swap
+cleanup_old_k8s
 install_dependencies
 install_kubernetes
 install_containerd
@@ -292,4 +292,5 @@ configure_shell
 output_join_command
 
 # Final message
+echo
 echo "[Setup Complete] Kubernetes master node setup finished successfully!"
