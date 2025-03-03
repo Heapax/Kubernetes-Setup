@@ -238,4 +238,6 @@ initialize_kubernetes
 configure_shell
 
 # Final message
+echo "EXECUTE ON MASTER: kubeadm token create --print-join-command --ttl 0"
+echo "THEN RUN THE OUTPUT AS COMMAND HERE TO ADD AS WORKER"
 echo "[Setup Complete] Kubernetes worker node setup finished successfully!"
