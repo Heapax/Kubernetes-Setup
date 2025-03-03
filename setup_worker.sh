@@ -11,66 +11,80 @@ set -e
 # Determine platform architecture
 check_architecture() {
   echo "[System] Checking platform architecture..."
+  echo "[System] Uname -m output: $(uname -m)"
   ARCH=$(uname -m)
   case "$ARCH" in
-    "aarch64") PLATFORM="arm64" ;;
-    "x86_64") PLATFORM="amd64" ;;
-    *) echo "[Error] Unsupported architecture: $ARCH. Only amd64 and arm64/aarch64 are supported."; exit 1 ;;
+    "aarch64")
+      echo "[System] Detected aarch64 architecture."
+      PLATFORM="arm64"
+      ;;
+    "x86_64")
+      echo "[System] Detected x86_64 architecture."
+      PLATFORM="amd64"
+      ;;
+    *)
+      echo "[Error] Unsupported architecture: $ARCH. Only amd64 and arm64/aarch64 are supported."
+      exit 1
+      ;;
   esac
   echo "[System] Detected architecture: $ARCH, setting platform to $PLATFORM."
+}
+
+# Disable linux swap and remove any exisitng swap partitions
+disable_swap() {
+  echo "[System] Disabling swap space and removing swap partitions..."
+  swapoff -a
+  sed -i '/\sswap\s/ s/^\(.*\)$/#\1/g' /etc/fstab
+  echo "[System] Swap space disabled."
 }
 
 # Check and remove old Kubernetes versions
 cleanup_old_k8s() {
   echo "[Cleanup] Removing old Kubernetes installations..."
-  echo
+  echo "[Cleanup] Running kubeadm reset..."
   sudo kubeadm reset -f || true
+  echo "[Cleanup] Removing packages..."
   sudo apt-get remove -y kubelet kubeadm kubectl || true
+  echo "[Cleanup] Removing autoremovable packages..."
   sudo apt-get autoremove -y || true
+  echo "[Cleanup] Removing directories..."
   sudo rm -rf ~/.kube /etc/kubernetes /var/lib/etcd /var/lib/kubelet
   echo "[Cleanup] Old Kubernetes installations removed."
 }
 
-# Update system packages
-update_system() {
-  echo "[System] Updating system packages..."
-  sudo apt-get update && sudo apt-get upgrade -y
-  echo "[System] System update complete."
+# Install dependencies
+install_dependencies() {
+  echo "[Dependencies] Installing required packages..."
+  apt-get install -y apt-transport-https ca-certificates curl gpg software-properties-common vim bash-completion
+  echo "[Dependencies] Packages installed."
 }
 
-# Install Podman
-install_podman() {
-  echo "[Podman] Installing Podman..."
-  sudo apt-get install -y podman
-  echo "[Podman] Podman installed."
-}
-
-# Install Kubernetes
 install_kubernetes() {
+  echo "[Kubernetes] Starting installation process..."
   echo "[Kubernetes] Adding Kubernetes repository..."
-  echo
-  sudo mkdir -p /etc/apt/keyrings
-  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg
-  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-  sudo apt-get update
-  echo
-  echo "[Kubernetes] Installing kubeadm, kubelet, and kubectl version $K8S_VERSION..."
-  echo
-  sudo apt-get install -y kubelet=${K8S_VERSION}-1.1 kubeadm=${K8S_VERSION}-1.1 kubectl=${K8S_VERSION}-1.1
-  sudo apt-mark hold kubelet kubeadm kubectl
+  mkdir -p /etc/apt/keyrings
+  KEYRING_PATH="/etc/apt/keyrings/kubernetes-${K8S_VERSION_MAJOR_MINOR/./-}-apt-keyring.gpg"
+  if [ -f "$KEYRING_PATH" ]; then
+    echo "[Kubernetes] Existing keyring found, removing..."
+    rm "$KEYRING_PATH"
+  fi
+  echo "[Kubernetes] Downloading and installing keyring..."
+  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor --yes -o "$KEYRING_PATH"
+  echo "[Kubernetes] Adding Kubernetes to sources list..."
+  echo "deb [signed-by=$KEYRING_PATH] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+  echo "[Kubernetes] Updating package list..."
+  apt-get update
+  echo "[Kubernetes] Installing packages..."
+  apt-get install -y docker.io containerd kubelet=${K8S_VERSION}-1.1 kubeadm=${K8S_VERSION}-1.1 kubectl=${K8S_VERSION}-1.1
+  echo "[Kubernetes] Holding package versions..."
+  apt-mark hold kubelet kubeadm kubectl kubernetes-cni
   echo "[Kubernetes] Kubernetes installation complete."
 }
 
-# Disable linux swap and remove any exisitng swap partitions
-disable_swap() {
-  swapoff -a
-  sed -i '/\sswap\s/ s/^\(.*\)$/#\1/g' /etc/fstab
-}
-
+# Install containerd
 # Install containerd
 install_containerd() {
   echo "[Containerd] Installing containerd..."
-  echo
   wget https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-${PLATFORM}.tar.gz
   tar xvf containerd-${CONTAINERD_VERSION}-linux-${PLATFORM}.tar.gz
   systemctl stop containerd
@@ -84,7 +98,6 @@ install_containerd() {
 # Setup containerd environmet
 setup_containerd() {
   echo "[Containerd] Setting up containerd environment..."
-  echo
   cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
 overlay
 br_netfilter
@@ -104,7 +117,6 @@ EOF
 # Create custom containerd configure file
 create_containerd_config() {
   echo '[Containerd] Creating containerd config...'
-  echo
   cat > /etc/containerd/config.toml <<EOF
 disabled_plugins = []
 imports = []
@@ -158,7 +170,6 @@ EOF
 # Configure kubelet to use containerd as default
 configure_kubelet() {
   echo "[Kubelet] Enable kubelet to use containerd as default..."
-  echo
   {
     cat <<EOF | sudo tee /etc/default/kubelet
 KUBELET_EXTRA_ARGS="--container-runtime-endpoint unix:///run/containerd/containerd.sock"
@@ -170,13 +181,27 @@ EOF
 # Start containerd and kubelet services
 start_services() {
   echo "[System] Starting containerd and kubelet services..."
-  echo
   kubeadm reset -f
   systemctl daemon-reload
   systemctl enable containerd
   systemctl restart containerd
   systemctl enable kubelet && systemctl start kubelet
   echo "[System] Services started successfully."
+}
+
+# Initialize kubernetes
+initialize_kubernetes() {
+  echo "[Kubernetes] Initializing Kubernetes cluster..."
+  echo "[Kubernetes] Running kubeadm reset..."
+  kubeadm reset -f
+  echo "[Kubernetes] kubeadm reset completed."
+  echo "[Kubernetes] Reloading systemd daemon..."
+  systemctl daemon-reload
+  echo "[Kubernetes] Systemd daemon reloaded."
+  echo "[Kubernetes] Starting kubelet service..."
+  systemctl start kubelet
+  echo "[Kubernetes] kubelet service started."
+  echo "[Kubernetes] Kubernetes initialization complete."
 }
 
 # Update shell environment
@@ -199,17 +224,17 @@ configure_shell() {
 
 # Run installation steps
 check_architecture
-cleanup_old_k8s
-update_system
-install_podman
-install_kubernetes
 disable_swap
+cleanup_old_k8s
+install_dependencies
+install_kubernetes
 install_containerd
 setup_containerd
 create_containerd_config
 configure_crictl
 configure_kubelet
 start_services
+initialize_kubernetes
 configure_shell
 
 # Final message

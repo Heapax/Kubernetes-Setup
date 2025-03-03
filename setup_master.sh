@@ -32,7 +32,6 @@ check_architecture() {
       ;;
   esac
   echo "[System] Detected architecture: $ARCH, setting platform to $PLATFORM."
-  echo
 }
 
 # Disable linux swap and remove any exisitng swap partitions
@@ -41,7 +40,6 @@ disable_swap() {
   swapoff -a
   sed -i '/\sswap\s/ s/^\(.*\)$/#\1/g' /etc/fstab
   echo "[System] Swap space disabled."
-  echo
 }
 
 # Check and remove old Kubernetes versions
@@ -60,7 +58,6 @@ cleanup_old_k8s() {
   echo "[Cleanup] Removing directories..."
   rm -rf ~/.kube /etc/kubernetes /var/lib/etcd /var/lib/kubelet
   echo "[Cleanup] Old Kubernetes installations removed."
-  echo
 }
 
 # Install dependencies
@@ -68,7 +65,6 @@ install_dependencies() {
   echo "[Dependencies] Installing required packages..."
   apt-get install -y apt-transport-https ca-certificates curl gpg software-properties-common vim bash-completion
   echo "[Dependencies] Packages installed."
-  echo
 }
 
 # Install Kubernetes
@@ -105,7 +101,6 @@ install_containerd() {
   systemctl unmask containerd
   systemctl start containerd
   echo "[Containerd] Containerd installed."
-  echo
 }
 
 # Setup containerd environmet
@@ -125,7 +120,6 @@ EOF
   sudo sysctl --system
   sudo mkdir -p /etc/containerd
   echo "[Containerd] Containerd environment setup completed."
-  echo
 }
 
 # Create custom containerd configure file
@@ -167,7 +161,6 @@ version = 2
         SystemdCgroup = true
 EOF
   echo "[Containerd] containerd config created successfully."
-  echo
 }
 
 # Configure crictl to use containerd as default
@@ -179,7 +172,6 @@ runtime-endpoint: unix:///run/containerd/containerd.sock
 EOF
   }
   echo "[Crictl] crictl configured successfully."
-  echo
 }
 
 # Configure kubelet to use containerd as default
@@ -191,7 +183,6 @@ KUBELET_EXTRA_ARGS="--container-runtime-endpoint unix:///run/containerd/containe
 EOF
   }
   echo "[Kubelet] kubelet configured successfully."
-  echo
 }
 
 # Start containerd and kubelet services
@@ -202,7 +193,6 @@ start_services() {
   systemctl restart containerd
   systemctl enable kubelet && systemctl start kubelet
   echo "[System] Services started successfully."
-  echo
 }
 
 # Initialize the Kubernetes cluster
@@ -211,19 +201,16 @@ initialize_kubernetes() {
   echo "[Kubernetes] Running kubeadm init..."
   kubeadm init --ignore-preflight-errors=NumCPU --pod-network-cidr=${POD_NETWORK_CIDR} --kubernetes-version=${K8S_VERSION} 2>&1 | tee kubeadm-init.log
   echo "[Kubernetes] kubeadm init completed."
-  echo
   echo "[Kubernetes] Setting up kubectl for the current user..."
   mkdir -p $HOME/.kube
   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
   sudo chown $(id -u):$(id -g) $HOME/.kube/config
   echo "[Kubernetes] kubectl configured successfully."
-  echo
   echo "[Kubernetes] Applying Calico CNI plugin..."
   curl -fsSL -o calico.yaml https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests/calico.yaml
   echo "[Kubernetes] Running kubectl to apply Calico CNI plugin..."
   kubectl apply -f calico.yaml
   echo "[Kubernetes] Calico networking configured."
-  echo
 }
 
 # Setup etcdctl
@@ -243,7 +230,6 @@ setup_etcdctl() {
   rm -rf ${ETCDCTL_VERSION_FULL} ${ETCDCTL_VERSION_FULL}.tar.gz
   echo "[Etcdctl] Temporary files cleaned up."
   echo "[Etcdctl] Installation complete."
-  echo
 }
 
 # Update shell environment
@@ -262,7 +248,6 @@ configure_shell() {
   echo 'complete -F __start_kubectl k' >> ~/.bashrc
   sed -i '1s/^/force_color_prompt=yes\n/' ~/.bashrc
   echo "[Configuration] Shell environment updated."
-  echo
 }
 
 # Output the join command for worker nodes
@@ -292,5 +277,4 @@ configure_shell
 output_join_command
 
 # Final message
-echo
 echo "[Setup Complete] Kubernetes master node setup finished successfully!"
