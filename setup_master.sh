@@ -85,15 +85,12 @@ install_kubernetes() {
   curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/Release.key | sudo gpg --dearmor --yes -o "$KEYRING_PATH"
   echo "[Kubernetes] Adding Kubernetes to sources list..."
   echo "deb [signed-by=$KEYRING_PATH] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION_MAJOR_MINOR}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-  
   echo "[Kubernetes] Updating package list..."
   apt-get update
-  
   echo "[Kubernetes] Installing packages..."
   apt-get install -y docker.io containerd kubelet=${K8S_VERSION}-1.1 kubeadm=${K8S_VERSION}-1.1 kubectl=${K8S_VERSION}-1.1
   echo "[Kubernetes] Holding package versions..."
   apt-mark hold kubelet kubeadm kubectl kubernetes-cni
-  
   echo "[Kubernetes] Kubernetes installation complete."
 }
 
