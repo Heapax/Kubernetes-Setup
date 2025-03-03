@@ -51,11 +51,11 @@ cleanup_old_k8s() {
 install_podman() {
   echo "[Podman] Installing Podman..."
   . /etc/os-release
-  echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:testing.list
-  curl -L "http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo apt-key add -
+  echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+  curl -fsSL "http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo tee /etc/apt/trusted.gpg.d/libcontainers.gpg > /dev/null
   apt-get update -qq
   apt-get -qq -y install podman cri-tools containers-common
-  rm /etc/apt/source.listd./devel:kubic:libcontainers:testing.list
+  rm /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
   cat <<EOF | sudo tee /etc/containers/registries.conf
 [registries.search]
 registries = ['docker.io']
