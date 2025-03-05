@@ -15,6 +15,28 @@ log() {
   logger -p "user.${level}" -t "setup-script" "${message}"
 }
 
+# Function to determine platform architecture
+check_architecture() {
+  log info "Checking platform architecture..."
+  ARCH=$(uname -m)
+  log info "Uname -m output: ${ARCH}"
+  case "$ARCH" in
+    "aarch64")
+      log info "Detected aarch64 architecture."
+      PLATFORM="arm64"
+      ;;
+    "x86_64")
+      log info "Detected x86_64 architecture."
+      PLATFORM="amd64"
+      ;;
+    *)
+      log err "Unsupported architecture: $ARCH. Only amd64 and arm64/aarch64 are supported."
+      exit 1
+      ;;
+  esac
+  log info "Detected architecture: $ARCH, setting platform to $PLATFORM."
+}
+
 # Function to install required kernel modules
 install_kernel_modules() {
   log info "Loading kernel modules..."
@@ -71,8 +93,8 @@ disable_swap() {
 # Function to install Kubernetes components
 install_k8s() {
   log info "Installing Kubernetes components..."
-  curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+  curl -fsSL https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION%.*}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION%.*}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
   sudo apt-get update -y
   sudo apt-get install -y kubelet=${K8S_VERSION}-* kubeadm=${K8S_VERSION}-* kubectl=${K8S_VERSION}-*
   sudo apt-mark hold kubelet kubeadm kubectl
