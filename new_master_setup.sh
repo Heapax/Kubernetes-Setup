@@ -4,6 +4,7 @@
 DOCKER_VERSION="5:28.0.1-1~ubuntu.22.04~jammy" # Based on your Ubuntu version, change if necessary
 K8S_VERSION="1.32.2"
 K8S_POD_NETWORK_CIDR="192.168.0.0/16"
+CALICO_VERSION="v3.26.1"
 
 # Exit on any error
 set -e
@@ -119,7 +120,7 @@ initialize_cluster() {
 # Function to install Calico network add-on
 install_calico() {
   log info "Installing Calico network add-on..."
-  if kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml; then
+  if kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v${CALICO_VERSION}/manifests/calico.yaml; then
     log info "Calico installed."
   else
     log err "Failed to install Calico."
