@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Define constants
-DOCKER_VERSION="5:23.0.1-1~ubuntu.${UBUNTU_VERSION}~focal"
-K8S_VERSION="1.27.0"
+DOCKER_VERSION="5:28.0.1-1~ubuntu.22.04~jammy" # Based on your Ubuntu version, change if necessary
+K8S_VERSION="1.32.2"
 K8S_POD_NETWORK_CIDR="192.168.0.0/16"
-UBUNTU_VERSION="$(lsb_release -rs)"
 
 # Exit on any error
 set -e
 
+# Function to determine platform architecture
 check_architecture() {
   echo "[System] Checking platform architecture..."
   echo "[System] Uname -m output: $(uname -m)"
@@ -53,27 +53,42 @@ EOF
   sudo sysctl --system
 }
 
+# Function to install required packages
+install_packages() {
+  echo "Installing packages..."
+  sudo apt-get update
+  sudo apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg-agent \
+    software-properties-common
+}
+
 # Function to set up Docker repository and install Docker
 install_docker() {
-  echo "Setting up Docker repository..."
-  sudo apt-get update && sudo apt-get install -y ca-certificates curl gnupg lsb-release apt-transport-https
+  # Uninstall old versions of Docker
+  sudo apt-get remove -y docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc || true
 
   # Add Docker's official GPG key
   sudo mkdir -m 0755 -p /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
   # Set up the Docker repository
-  echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
   sudo apt-get update
 
   # Install Docker Engine, containerd, and Docker Compose
-  sudo apt-get install -y docker-ce=$DOCKER_VERSION docker-ce-cli=$DOCKER_VERSION containerd.io docker-buildx-plugin docker-compose-plugin
+  sudo apt-get install -y \
+    docker-ce=${DOCKER_VERSION} \
+    docker-ce-cli=${DOCKER_VERSION} \
+    containerd.io \
+    docker-buildx-plugin \
+    docker-compose-plugin
 
   # Add current user to docker group
-  sudo usermod -aG docker $USER
+  sudo usermod -aG docker "${USER}"
 }
 
 # Function to configure containerd
@@ -131,6 +146,7 @@ get_join_command() {
 main() {
   install_kernel_modules
   set_sysctl_params
+  install_packages
   install_docker
   configure_containerd
   disable_swap
