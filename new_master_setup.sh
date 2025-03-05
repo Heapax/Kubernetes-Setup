@@ -4,7 +4,7 @@
 DOCKER_VERSION="5:28.0.1-1~ubuntu.22.04~jammy" # Based on your Ubuntu version, change if necessary
 K8S_VERSION="1.32.2"
 K8S_POD_NETWORK_CIDR="192.168.0.0/16"
-CALICO_VERSION="v3.26.1"
+CALICO_VERSION="3.26.1"
 
 # Exit on any error
 set -e
